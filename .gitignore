@@ -1,0 +1,45 @@
+.worktrees/
+target/
+.DS_Store
+# Native build artifacts
+*.dylib
+*.so
+*.dll
+*.exe
+*.a
+*.lib
+*.o
+*.obj
+*.dSYM/
+# Android / Gradle
+**/build/
+**/.gradle/
+**/local.properties
+*.apk
+*.aab
+# Required upstream build scripts and Windows runtime inputs in the vendored tree.
+!vendor/easytier/easytier/build/
+!vendor/easytier/easytier/build/**
+!vendor/easytier/easytier-proto/build/
+!vendor/easytier/easytier-proto/build/**
+!vendor/easytier/easytier/third_party/**
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+# Local test state and reports
+**/.cyberbus-*
+**/*-private/
+**/reports/
+*.jsonl
+*.log
+*.trace
+*.profraw

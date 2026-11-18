@@ -1,0 +1,29 @@
+plugins { id 'com.android.application' }
+
+def sealedAar = file(providers.gradleProperty('consumerAar').get())
+def protobufRuntime = file(providers.gradleProperty('consumerRuntime').get())
+def publicConfig = file(providers.gradleProperty('consumerConfig').get())
+def assets = layout.buildDirectory.dir('generated/publicAssets')
+def prepareInputs = tasks.register('prepareInputs', Sync) {
+    inputs.files(sealedAar, protobufRuntime)
+    from(publicConfig) { rename { 'public-config.json' } }
+    into assets
+    doFirst {
+        def sha = { input -> java.security.MessageDigest.getInstance('SHA-256').digest(input.bytes).encodeHex().toString() }
+        if (sha(sealedAar) != 'b00e0d4861765815b999075f901c42372dac1c3d8453561f64d6324c61d5291d')
+            throw new GradleException('Frozen 70f5f99 AAR hash mismatch')
+        if (sha(protobufRuntime) != 'ae83d2b063988c4565462845269472ddc817117506b6e467a2c3222c96636829')
+            throw new GradleException('Pinned protobuf-javalite 4.26.1 hash mismatch')
+    }
+}
+dependencies { implementation files(sealedAar); implementation files(protobufRuntime) }
+android {
+    namespace 'io.cyberbus.aarconsumer'
+    compileSdk 35
+    defaultConfig { applicationId 'io.cyberbus.aarconsumer'; minSdk 26; targetSdk 28; versionCode 1; versionName '70f5f99-smoke' }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    sourceSets.main.assets.srcDir assets
+    // Preserve the already sealed AAR's JNI bytes; never strip or rebuild them.
+    packaging.jniLibs { keepDebugSymbols += ['**/libcyberbus_ffi.so']; useLegacyPackaging = true }
+}
+tasks.named('preBuild').configure { dependsOn prepareInputs }

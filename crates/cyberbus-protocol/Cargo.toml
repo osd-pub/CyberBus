@@ -1,0 +1,27 @@
+[package]
+name = "cyberbus-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+build = "build.rs"
+description = "CyberBus v1 generated Protobuf contracts, bounded codecs and authenticated Noise streams"
+
+[dependencies]
+bytes.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+prost-reflect.workspace = true
+snow.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+zeroize.workspace = true
+semver.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "test-util"] }

@@ -1,0 +1,13 @@
+{
+  "issuer": "https://auth.example.com/oidc",
+  "client_id": "example-native-client",
+  "resource": "https://api.example.com/cyberbus",
+  "product_id": "example-product",
+  "native_clients": {"example-native-client": "example-product"},
+  "redirect_uri": "http://127.0.0.1:18765/callback",
+  "bootstrap_peers": ["tcp://relay.example.invalid:11010"],
+  "listeners": [],
+  "offline_access": true,
+  "enable_p2p": true,
+  "persist_grant": false
+}

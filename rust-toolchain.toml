@@ -1,0 +1,5 @@
+[toolchain]
+# Tested with stable rustc 1.97.1; use the installed stable toolchain for samples.
+channel = "stable"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

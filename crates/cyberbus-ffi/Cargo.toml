@@ -1,0 +1,23 @@
+[package]
+name = "cyberbus-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Thin C/JNI adapter for the shared CyberBus native runtime"
+
+[lib]
+name = "cyberbus_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+cyberbus = { path = "../cyberbus" }
+cyberbus-auth = { path = "../cyberbus-auth" }
+prost = "0.14"
+tokio = { version = "1.48", features = ["rt-multi-thread", "sync", "time"] }
+zeroize = "1.8"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21.1"
+
+[dev-dependencies]
+serde_json = "1"

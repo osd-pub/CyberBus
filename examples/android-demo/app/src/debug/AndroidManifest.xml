@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service android:name=".StoreLockProbeService" android:exported="false" android:process=":store_lock_probe" />
+    </application>
+</manifest>

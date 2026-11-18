@@ -1,0 +1,92 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def repositoryRoot = rootProject.projectDir.toPath().resolve('../..').normalize().toFile()
+def schemaRoot = file(providers.gradleProperty('cyberbusProtoDir').getOrElse(new File(repositoryRoot, 'proto').path))
+def publicConfig = file(providers.gradleProperty('cyberbusConfig').getOrElse(new File(repositoryRoot, 'deploy/test-client.json').path))
+def nativeDirectory = file(providers.gradleProperty('cyberbusJniDir').getOrElse(new File(repositoryRoot, 'target/android-jni').path))
+def generatedJava = layout.buildDirectory.dir('generated/source/proto/main/java')
+def generatedAssets = layout.buildDirectory.dir('generated/assets/publicConfig')
+def protocBinary = providers.gradleProperty('cyberbusProtoc')
+
+configurations { protocTool; protobufIncludes }
+dependencies {
+    implementation 'com.google.protobuf:protobuf-javalite:4.26.1'
+    protobufIncludes 'com.google.protobuf:protobuf-java:3.25.5'
+    def hostOs = System.getProperty('os.name').toLowerCase().contains('mac') ? 'osx' : 'linux'
+    def hostArch = System.getProperty('os.arch') in ['aarch64', 'arm64'] ? 'aarch_64' : 'x86_64'
+    protocTool "com.google.protobuf:protoc:4.26.1:${hostOs}-${hostArch}@exe"
+}
+
+def extractIncludes = tasks.register('extractProtobufIncludes', Sync) {
+    from { configurations.protobufIncludes.collect { zipTree(it) } }
+    include 'google/protobuf/*.proto'
+    into layout.buildDirectory.dir('protobuf-includes')
+}
+def generateProto = tasks.register('generateLiteProto', Exec) {
+    dependsOn extractIncludes
+    inputs.files(fileTree(schemaRoot) { include '**/*.proto' })
+    outputs.dir generatedJava
+    doFirst {
+        if (!new File(schemaRoot, 'cyberbus/easytier/v1/sdk.proto').isFile()) {
+            throw new GradleException('SDK schema missing; set -PcyberbusProtoDir=/path/to/proto')
+        }
+        delete generatedJava
+        generatedJava.get().asFile.mkdirs()
+        def compiler = protocBinary.isPresent() ? file(protocBinary.get()) : configurations.protocTool.singleFile
+        compiler.setExecutable(true)
+        commandLine([compiler.absolutePath, "-I${schemaRoot}", "-I${layout.buildDirectory.dir('protobuf-includes').get().asFile}",
+                     "--java_out=lite:${generatedJava.get().asFile}"] + fileTree(schemaRoot).matching { include '**/*.proto' }.files.sort().collect { it.path })
+    }
+}
+def prepareConfig = tasks.register('preparePublicConfig') {
+    // Missing deployment config is an honest, visible runtime error in a shell-only APK.
+    inputs.files(providers.provider { publicConfig.isFile() ? [publicConfig] : [] })
+    outputs.dir generatedAssets
+    outputs.upToDateWhen { false }
+    doFirst {
+        if (providers.gradleProperty('requireNative').getOrElse('false').toBoolean()) {
+            if (!publicConfig.isFile()) throw new GradleException('Public deployment config is required')
+            if (!new File(nativeDirectory, 'arm64-v8a/libcyberbus_ffi.so').isFile()) {
+                throw new GradleException('arm64-v8a/libcyberbus_ffi.so is required')
+            }
+        }
+    }
+    doLast {
+        delete generatedAssets
+        generatedAssets.get().asFile.mkdirs()
+        if (publicConfig.isFile()) {
+            def config = new groovy.json.JsonSlurper().parse(publicConfig)
+            // The shared manifest's default is the desktop loopback callback.
+            config.redirect_uri = 'cyberbus://auth/callback'
+            new File(generatedAssets.get().asFile, 'test-client.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+        }
+    }
+}
+
+android {
+    namespace 'io.cyberbus.demo'
+    buildFeatures { buildConfig true }
+    compileSdk 35
+    ndkVersion '27.2.12479018'
+    defaultConfig {
+        applicationId 'io.cyberbus.demo'
+        minSdk 26
+        targetSdk 28
+        versionCode 1
+        versionName '0.1.0'
+        testInstrumentationRunner 'io.cyberbus.demo.StoreInstrumentation'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
+    sourceSets.main {
+        java.srcDir generatedJava
+        assets.srcDir generatedAssets
+        jniLibs.srcDir nativeDirectory
+    }
+    buildTypes { release { minifyEnabled false } }
+}
+tasks.named('preBuild').configure { dependsOn generateProto, prepareConfig }

@@ -1,0 +1,7 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+com.google.protobuf:protobuf-java:3.25.5=protobufIncludes
+com.google.protobuf:protobuf-javalite:4.26.1=releaseCompileClasspath,releaseRuntimeClasspath
+com.google.protobuf:protoc:4.26.1=protocTool
+empty=androidApis,androidJdkImage,lintPublish,releaseAnnotationProcessorClasspath

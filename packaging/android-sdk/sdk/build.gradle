@@ -1,0 +1,80 @@
+plugins { id 'com.android.library'; id 'maven-publish' }
+
+def repositoryRoot = rootProject.projectDir.toPath().resolve('../..').normalize().toFile()
+def schemaRoot = new File(repositoryRoot, 'proto')
+def nativeDirectory = file(providers.gradleProperty('cyberbusJniDir').get())
+def generatedJava = layout.buildDirectory.dir('generated/source/proto/main/java')
+def generatedNotices = layout.buildDirectory.dir('generated/resources/notices')
+configurations { protocTool; protobufIncludes }
+dependencies {
+    api 'com.google.protobuf:protobuf-javalite:4.26.1'
+    protobufIncludes 'com.google.protobuf:protobuf-java:3.25.5'
+    def hostOs = System.getProperty('os.name').toLowerCase().contains('mac') ? 'osx' : 'linux'
+    def hostArch = System.getProperty('os.arch') in ['aarch64', 'arm64'] ? 'aarch_64' : 'x86_64'
+    protocTool "com.google.protobuf:protoc:4.26.1:${hostOs}-${hostArch}@exe"
+}
+dependencyLocking { lockAllConfigurations() }
+def extractIncludes = tasks.register('extractProtobufIncludes', Sync) {
+    from { configurations.protobufIncludes.collect { zipTree(it) } }
+    include 'google/protobuf/*.proto'
+    into layout.buildDirectory.dir('protobuf-includes')
+}
+def generateProto = tasks.register('generateLiteProto', Exec) {
+    dependsOn extractIncludes
+    inputs.files(fileTree(schemaRoot) { include '**/*.proto' })
+    outputs.dir generatedJava
+    doFirst {
+        delete generatedJava
+        generatedJava.get().asFile.mkdirs()
+        def compiler = providers.gradleProperty('cyberbusProtoc').isPresent() ? file(providers.gradleProperty('cyberbusProtoc').get()) : configurations.protocTool.singleFile
+        compiler.setExecutable(true)
+        // Also compile imported well-known types, including descriptor options;
+        // protobuf-javalite's runtime does not ship all generated WKTs.
+        def includes = layout.buildDirectory.dir('protobuf-includes').get().asFile
+        commandLine([compiler.absolutePath, "-I${schemaRoot}", "-I${includes}",
+            "--java_out=lite:${generatedJava.get().asFile}"] +
+            fileTree(schemaRoot).matching { include '**/*.proto' }.files.sort().collect { it.path } +
+            [new File(includes, 'google/protobuf/descriptor.proto').path])
+    }
+}
+def verifyNative = tasks.register('verifyNative') {
+    doLast {
+        if (!new File(nativeDirectory, 'arm64-v8a/libcyberbus_ffi.so').isFile())
+            throw new GradleException('Actual arm64-v8a public JNI library required')
+    }
+}
+def prepareNotices = tasks.register('prepareNotices', Sync) {
+    from(new File(repositoryRoot, 'packaging/licenses')) { into 'META-INF/cyberbus/licenses' }
+    from(new File(repositoryRoot, 'packaging/NOTICE.md')) { into 'META-INF/cyberbus' }
+    from(new File(repositoryRoot, 'packaging/RELINK.md')) { into 'META-INF/cyberbus' }
+    into generatedNotices
+}
+android {
+    namespace 'io.cyberbus.sdk'
+    compileSdk 35
+    ndkVersion '27.2.12479018'
+    defaultConfig { minSdk 26; consumerProguardFiles 'consumer-rules.pro'; ndk { abiFilters 'arm64-v8a' } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    sourceSets.main { java.srcDir generatedJava; resources.srcDir generatedNotices; jniLibs.srcDir nativeDirectory }
+    publishing { singleVariant('release') { withSourcesJar() } }
+}
+tasks.named('preBuild').configure { dependsOn generateProto, verifyNative, prepareNotices }
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'io.cyberbus'; artifactId = 'cyberbus-sdk'; version = '0.1.0'
+                pom {
+                    name = 'CyberBus SDK'; description = 'Rust bytes SDK with public JNI and generated protobuf lite types; contains LGPL components'
+                    licenses {
+                        license { name = 'GNU Lesser General Public License v3'; url = 'https://www.gnu.org/licenses/lgpl-3.0.html'; distribution = 'repo' }
+                        license { name = 'MIT (CyberBus components)'; url = 'https://opensource.org/license/mit'; distribution = 'repo' }
+                        license { name = 'Apache-2.0 (alternative for CyberBus components)'; url = 'https://www.apache.org/licenses/LICENSE-2.0'; distribution = 'repo' }
+                    }
+                }
+            }
+        }
+        repositories { maven { url = layout.buildDirectory.dir('repository') } }
+    }
+}

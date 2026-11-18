@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No INTERNET permission: this consumer requests no auth/network operation. -->
+    <application android:label="Public AAR ART smoke" android:allowBackup="false" android:testOnly="true">
+        <activity android:name=".SmokeActivity" android:exported="false" />
+        <service android:name=".LockProbeService" android:exported="false" android:process=":lockprobe" />
+    </application>
+    <instrumentation android:name=".SmokeInstrumentation" android:targetPackage="io.cyberbus.aarconsumer" android:functionalTest="true" />
+</manifest>

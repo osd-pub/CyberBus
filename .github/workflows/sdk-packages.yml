@@ -1,0 +1,119 @@
+name: Native SDK packages
+on:
+  workflow_dispatch:
+  push:
+    paths: ['crates/**', 'proto/**', 'include/**', 'packaging/**', 'scripts/**', 'Cargo.lock', '.github/workflows/sdk-packages.yml']
+  pull_request:
+    paths: ['crates/**', 'proto/**', 'include/**', 'packaging/**', 'scripts/**', 'Cargo.lock', '.github/workflows/sdk-packages.yml']
+permissions:
+  contents: read
+env:
+  RUSTUP_TOOLCHAIN: 1.97.1
+  CYBERBUS_RUST_TOOLCHAIN: 1.97.1
+  CARGO_BUILD_JOBS: 2
+  MACOSX_DEPLOYMENT_TARGET: '11.0'
+jobs:
+  desktop:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc }
+          - { os: macos-14, target: aarch64-apple-darwin }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
+        with: { python-version: '3.12' }
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        if: runner.os == 'Windows'
+      - name: Install exact Rust and host protoc
+        shell: bash
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add ${{ matrix.target }}
+          cargo fetch --locked
+          python packaging/ci-protoc.py
+      - name: Build actual libraries and CLI and assemble sources/licenses
+        run: python scripts/package-desktop-sdk.py --target ${{ matrix.target }}
+      - name: Verify hashes and real native C lifecycle
+        run: python packaging/verify-package.py target/packages-002/${{ matrix.target }} --config deploy/test-client.json
+      - name: Build and test Swift package on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          python packaging/package.py apple --target aarch64-apple-darwin --profile release --native-dir target/aarch64-apple-darwin/release --output target/packages-002/apple-macos-arm64
+          swift test --package-path target/packages-002/apple-macos-arm64
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: sdk-${{ matrix.target }}
+          path: |
+            target/packages-002/${{ matrix.target }}/
+            target/packages-002/apple-macos-arm64/
+            !target/packages-002/**/.build/**
+          if-no-files-found: error
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-java@v4.7.1
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4.4.3
+        with: { gradle-version: '8.14.3' }
+      - name: Install pinned NDK and Rust
+        shell: bash
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add aarch64-linux-android
+          cargo fetch --locked
+          python3 packaging/ci-protoc.py
+          echo "GRADLE_BIN=$(command -v gradle)" >> "$GITHUB_ENV"
+      - name: Build AAR with actual public JNI, Maven runtime and license sources
+        run: scripts/package-android-sdk.sh
+      - name: Verify AAR consumers on actual host JNI boundary
+        run: python3 packaging/host-jni-smoke.py
+      - name: Verify sealed hashes
+        run: python3 packaging/verify-package.py target/packages-002/android-arm64
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: sdk-android-arm64
+          path: |
+            target/packages-002/android-arm64/
+            packaging/android-sdk/sdk/build/repository/
+          if-no-files-found: error
+  ios:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Require full Xcode and install exact Rust targets
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          xcrun --sdk iphonesimulator --show-sdk-path
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+          cargo fetch --locked
+          python3 packaging/ci-protoc.py
+      - name: Build both actual slices into one XCFramework
+        env:
+          CYBERBUS_PACKAGE_DIR: target/packages-002/apple-ios
+        run: |
+          CYBERBUS_APPLE_TARGET=aarch64-apple-ios scripts/build-apple.sh --release
+          CYBERBUS_APPLE_TARGET=aarch64-apple-ios-sim scripts/build-apple.sh --release
+      - name: Compile and run iOS simulator XCTest lifecycle
+        working-directory: target/packages-002/apple-ios
+        run: |
+          xcrun simctl list devices available
+          xcodebuild -scheme CyberBus -destination 'platform=iOS Simulator,name=iPhone 16' -derivedDataPath ../ios-tests CODE_SIGNING_ALLOWED=NO test
+      - name: Verify sealed hashes
+        run: python3 packaging/verify-package.py target/packages-002/apple-ios
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: sdk-ios-device-simulator
+          path: target/packages-002/apple-ios/
+          if-no-files-found: error

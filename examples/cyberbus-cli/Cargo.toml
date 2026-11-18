@@ -1,0 +1,14 @@
+[package]
+name = "cyberbus-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cyberbus = { path = "../../crates/cyberbus" }
+cyberbus-auth = { path = "../../crates/cyberbus-auth" }
+cyberbus-protocol = { path = "../../crates/cyberbus-protocol" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "time", "sync", "process"] }
+prost = "0.14"
+prost-types = "0.14"
+hex = "0.4"
+sha2 = "0.10"

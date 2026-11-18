@@ -1,0 +1,17 @@
+[package]
+name = "cyberbus-test-client"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+cyberbus = { path = "../../crates/cyberbus" }
+cyberbus-auth = { path = "../../crates/cyberbus-auth" }
+cyberbus-protocol = { path = "../../crates/cyberbus-protocol" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "sync", "time"] }
+prost = "0.14"
+prost-reflect = { version = "0.16", features = ["serde"] }
+serde_json = "1"
+base64 = "0.22"
+easytier = { path = "../../vendor/easytier/easytier", default-features = false, features = ["smoltcp", "aes-gcm"] }
+easytier-core = { path = "../../vendor/easytier/easytier-core", default-features = false, features = ["config-write"] }
