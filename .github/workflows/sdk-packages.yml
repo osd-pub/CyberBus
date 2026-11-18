@@ -161,10 +161,18 @@ jobs:
           pattern: sdk-*
       - name: Assemble normalized SDK, sample and checksum assets
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+          CYBERBUS_VERSION: ${{ env.CYBERBUS_VERSION }}
+        shell: bash
         run: |
+          set -euo pipefail
+          release_tag="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            release_tag="v${CYBERBUS_VERSION#v}"
+          fi
           python3 scripts/package-release-assets.py \
-            --tag "$RELEASE_TAG" \
+            --tag "$release_tag" \
             --input release-artifacts \
             --output release-assets \
             --repository-root .
