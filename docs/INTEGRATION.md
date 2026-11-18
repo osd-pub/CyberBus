@@ -14,7 +14,7 @@ prost = "0.14"
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }
 ```
 
-在仓库尚未创建 release tag 前，也可以使用 `path` 依赖或固定 commit。SDK 当前没有把包发布到公共 registry。公共 JSON 的最小形状是：
+也可以使用 `path` 依赖或固定 commit。当前源码 tag 可以直接作为 Git 依赖使用，但 SDK 尚未把包发布到 crates.io、Maven Central 或 Swift Package Index。公共 JSON 的最小形状是：
 
 ```json
 {
