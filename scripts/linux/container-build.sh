@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 rustc --version
 cargo --version
-cc --version | head -1
+cc --version | sed -n '1p'
 pkg-config --modversion openssl
 cargo fetch --locked
 if ! command -v protoc >/dev/null 2>&1; then

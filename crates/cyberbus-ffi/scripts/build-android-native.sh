@@ -27,7 +27,7 @@ for option in "$@"; do if [[ "$option" == --release ]]; then PROFILE_DIR=release
 OUTPUT_DIR="${CYBERBUS_JNI_DIR:-$FFI_DIR/target/android-jni}/arm64-v8a"
 mkdir -p "$OUTPUT_DIR"
 cp "$CARGO_TARGET_DIR/aarch64-linux-android/$PROFILE_DIR/libcyberbus_ffi.so" "$OUTPUT_DIR/"
-"$TOOLCHAIN_DIR/llvm-readelf" -h "$OUTPUT_DIR/libcyberbus_ffi.so" | head -18
+"$TOOLCHAIN_DIR/llvm-readelf" -h "$OUTPUT_DIR/libcyberbus_ffi.so" | sed -n '1,18p'
 "$TOOLCHAIN_DIR/llvm-readelf" -d "$OUTPUT_DIR/libcyberbus_ffi.so" | rg NEEDED || true
 echo "JNI directory: $(dirname "$OUTPUT_DIR")"
 echo "Package with CYBERBUS_JNI_DIR=$(dirname "$OUTPUT_DIR") scripts/build-android.sh"
