@@ -14,7 +14,7 @@ if [[ -z "$GRADLE_COMMAND" ]]; then
   done
 fi
 [[ -x "$GRADLE_COMMAND" && -x "$JAVA_HOME/bin/java" ]] || { echo 'Gradle 8.14.3 and JDK17 required' >&2; exit 1; }
-"$GRADLE_COMMAND" --version | rg -q 'Gradle 8.14.3'
+"$GRADLE_COMMAND" --version | grep -Fq 'Gradle 8.14.3'
 PROFILE=release
 OPTIONS=(--release --locked)
 if [[ "${CYBERBUS_NATIVE_DEBUG:-0}" == 1 ]]; then PROFILE=debug; OPTIONS=(--locked); fi
@@ -25,7 +25,7 @@ NDK_HOST=darwin-x86_64
 if [[ "$(uname -s)" != Darwin ]]; then NDK_HOST=linux-x86_64; fi
 "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin/llvm-nm" -D --defined-only "$CYBERBUS_JNI_DIR/arm64-v8a/libcyberbus_ffi.so" > "$CARGO_TARGET_DIR/packages-002-jni-symbols.txt"
 for method in Create Execute Poll OnResume Close; do
-  rg -q "Java_io_cyberbus_sdk_NativeBridge_native$method$" "$CARGO_TARGET_DIR/packages-002-jni-symbols.txt"
+  grep -Eq "Java_io_cyberbus_sdk_NativeBridge_native${method}$" "$CARGO_TARGET_DIR/packages-002-jni-symbols.txt"
 done
 GRADLE_OPTIONS=(-p "$TASK_ROOT/packaging/android-sdk" --console=plain "-PcyberbusJniDir=$CYBERBUS_JNI_DIR")
 if [[ -n "${CYBERBUS_PROTOC:-}" ]]; then GRADLE_OPTIONS+=("-PcyberbusProtoc=$CYBERBUS_PROTOC"); fi
