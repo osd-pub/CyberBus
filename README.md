@@ -31,6 +31,7 @@ CyberBus Client ── OIDC/PKCE ── 你的 Logto/OIDC 服务
 - [应用接入指南](docs/INTEGRATION.md)：Rust、C/JNI、Android、Swift 的初始化、登录、设备、数据和关闭顺序。
 - [构建与打包](docs/BUILDING.md)：工具链、离线 smoke、平台依赖和本地包。
 - [Cloudflare WSS 兜底](docs/CLOUDFLARE_FALLBACK.md)：官方 `cloudflared` connector 的可选配置和限制。
+- [GitHub Releases](https://github.com/osd-pub/CyberBus/releases)：由版本 tag 自动构建的 Linux、Windows、macOS、Android、iOS 类库和 sample。
 - [协议与消息](docs/protocol.md) / [SDK API 细节](docs/sdk-api.md)：字段、状态机、ACK、RPC 和事件约束。
 - [原生绑定](docs/native-bindings.md)：C ABI、JNI、Swift 的 buffer 所有权与存储边界。
 - [认证部署参考](docs/logto-deployment.md)：自部署 OIDC/Logto 时的安全要求；不会替你部署服务。

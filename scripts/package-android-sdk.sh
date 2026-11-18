@@ -3,6 +3,9 @@ set -euo pipefail
 TASK_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$TASK_ROOT/target}"
 export CYBERBUS_RUST_TOOLCHAIN="${CYBERBUS_RUST_TOOLCHAIN:-1.97.1}"
+VERSION="${CYBERBUS_VERSION:-0.1.0}"
+VERSION="${VERSION#v}"
+export CYBERBUS_VERSION="$VERSION"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/27.2.12479018}"
 export CYBERBUS_JNI_DIR="${CYBERBUS_JNI_DIR:-$CARGO_TARGET_DIR/packages-002/android-jni}"
@@ -27,10 +30,10 @@ if [[ "$(uname -s)" != Darwin ]]; then NDK_HOST=linux-x86_64; fi
 for method in Create Execute Poll OnResume Close; do
   grep -Eq "Java_io_cyberbus_sdk_NativeBridge_native${method}$" "$CARGO_TARGET_DIR/packages-002-jni-symbols.txt"
 done
-GRADLE_OPTIONS=(-p "$TASK_ROOT/packaging/android-sdk" --console=plain "-PcyberbusJniDir=$CYBERBUS_JNI_DIR")
+GRADLE_OPTIONS=(-p "$TASK_ROOT/packaging/android-sdk" --console=plain "-PcyberbusJniDir=$CYBERBUS_JNI_DIR" "-PcyberbusVersion=$VERSION")
 if [[ -n "${CYBERBUS_PROTOC:-}" ]]; then GRADLE_OPTIONS+=("-PcyberbusProtoc=$CYBERBUS_PROTOC"); fi
 "$GRADLE_COMMAND" "${GRADLE_OPTIONS[@]}" :sdk:assembleRelease :sdk:publish "$@"
-REPOSITORY="$TASK_ROOT/packaging/android-sdk/sdk/build/repository/io/cyberbus/cyberbus-sdk/0.1.0"
+REPOSITORY="$TASK_ROOT/packaging/android-sdk/sdk/build/repository/io/cyberbus/cyberbus-sdk/$VERSION"
 mkdir -p "$REPOSITORY/third-party"
 # Keep exact runtime binary, upstream source and license in the standalone bundle.
 python3 "$TASK_ROOT/packaging/maven-material.py" "$REPOSITORY/third-party"
@@ -38,6 +41,6 @@ PACKAGE_DIR="${CYBERBUS_PACKAGE_DIR:-$CARGO_TARGET_DIR/packages-002/android-arm6
 python3 "$TASK_ROOT/packaging/package.py" android --target aarch64-linux-android --profile "$PROFILE" --native-dir "$REPOSITORY" --output "$PACKAGE_DIR"
 # Publish directly included corresponding native sources alongside the Java
 # sources classifier; Maven users can retrieve it without an upstream checkout.
-cp "$PACKAGE_DIR/SOURCES.tar.gz" "$REPOSITORY/cyberbus-sdk-0.1.0-native-sources.tar.gz"
-cp "$PACKAGE_DIR/SBOM.cdx.json" "$REPOSITORY/cyberbus-sdk-0.1.0-sbom.json"
+cp "$PACKAGE_DIR/SOURCES.tar.gz" "$REPOSITORY/cyberbus-sdk-$VERSION-native-sources.tar.gz"
+cp "$PACKAGE_DIR/SBOM.cdx.json" "$REPOSITORY/cyberbus-sdk-$VERSION-sbom.json"
 echo "Maven repository: $TASK_ROOT/packaging/android-sdk/sdk/build/repository"

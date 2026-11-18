@@ -14,6 +14,9 @@ import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = os.environ.get('CYBERBUS_VERSION', '0.1.0')
+if VERSION.startswith('v'):
+    VERSION = VERSION[1:]
 
 def run(args, **kwargs):
     return subprocess.run([str(x) for x in args], check=True, cwd=ROOT, **kwargs)
@@ -122,7 +125,7 @@ def sources(output, target, include_cli=False):
 
 def finalize(output, target, profile, kind, tools=None):
     manifest = {
-        'name': 'CyberBus SDK', 'version': '0.1.0', 'kind': kind,
+        'name': 'CyberBus SDK', 'version': VERSION, 'kind': kind,
         'base_revision': text(['git', 'rev-parse', 'HEAD']),
         'working_tree_status': text(['git', 'status', '--porcelain']),
         'source_snapshot_sha256': digest(output / 'SOURCES.tar.gz'),
@@ -173,6 +176,7 @@ def main():
     tools = {}
     if args.kind == 'apple':
         apple(output, native, args.target)
+        shutil.copy2(ROOT / 'packaging/smoke/swift.swift', output / 'sample.swift')
         tools['swift'] = text(['swift', '--version'])
         tools['sdk'] = text(['xcrun', '--show-sdk-path'])
         tools['clang'] = text(['clang', '--version'])
@@ -188,7 +192,8 @@ def main():
         for tool in ['zig', 'cargo-zigbuild']:
             if shutil.which(tool): tools[tool] = text([tool, 'version' if tool == 'zig' else '--version'])
     else:
-        for name in ['cyberbus-sdk-0.1.0.aar', 'cyberbus-sdk-0.1.0.pom', 'cyberbus-sdk-0.1.0-sources.jar']:
+        for name in [f'cyberbus-sdk-{VERSION}.aar', f'cyberbus-sdk-{VERSION}.pom',
+                     f'cyberbus-sdk-{VERSION}-sources.jar']:
             shutil.copy2(native / name, output / name)
         # Maven repository includes pinned runtime, sources and license material.
         shutil.copytree(native / 'third-party', output / 'third-party', dirs_exist_ok=True)

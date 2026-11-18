@@ -27,3 +27,24 @@ python3 -m unittest discover -s tests/multiclient -p 'test_*.py' -v
 `easytier_probe` 需要用户提供 relay 和 peer 参数，输出 JSONL 的 IO/Noise 探针结果；它不读取账号配置、不启动 TUN、不声称业务可达。
 
 发布前至少检查：`cargo fmt --all -- --check`、workspace tests、包内的 MANIFEST/SBOM、`python3 scripts/check-public-tree.py` 和 `git diff --check`。
+
+## GitHub Release
+
+`.github/workflows/sdk-packages.yml` 在推送 `v*` tag 时构建并发布 GitHub Release。tag 必须与 workspace 版本一致，例如 `v0.1.0` 对应 `0.1.0`。Release 包含：
+
+- Linux x86_64、Windows x86_64、macOS arm64 原生库和 `cyberbus-cli`
+- Android arm64 AAR、Maven repository 和 debug sample APK
+- iOS device/simulator XCFramework、Swift package 和 `sample.swift`
+- 桌面、Android、Apple sample 源码及接入文档
+- `SHA256SUMS`、`release-manifest.json`、SBOM、许可证和源码材料
+
+本地预演 release 资产汇总：
+
+```sh
+python3 scripts/package-release-assets.py \
+  --tag v0.1.0 \
+  --input release-artifacts \
+  --output release-assets
+```
+
+正常发布通过 GitHub Actions 完成，不要手工上传替代平台构建结果。重复运行同一 tag 的 workflow 会更新已有 Release 的资产，并使用 `--clobber` 替换同名文件。
