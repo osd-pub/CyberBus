@@ -30,7 +30,7 @@ flowchart LR
 
 | 模块 | 责任和边界 |
 | --- | --- |
-| LogtoAdapter | Logto Native PKCE、托管注册、回调、刷新、退出；官方 SDK 或基础验证阶段选定的成熟 Rust OAuth/OIDC 适配实现，唯一 grant owner |
+| LogtoAdapter | Logto Native/SPA PKCE、托管注册、回调、刷新、退出；官方 SDK 或基础验证阶段选定的成熟 Rust OAuth/OIDC 适配实现，唯一 grant owner |
 | CredentialContext | 验证 resource JWT/专用 claim，派生网络与业务密钥；不公开 token/seed |
 | CredentialMonitor | 定期真实签发核验、离线租约、变更/撤销分类及重新登录锁存；复用唯一 grant owner |
 | DevicePolicyStore | 持久化本地屏蔽表；认证后默认可信，逐次把关数据及信息交换 |
@@ -47,7 +47,7 @@ flowchart LR
 
 ### 2.1 部署阶段与终端权限
 
-部署者创建 Native 应用、固定 API resource、`network:join` scope 与用户角色，设置回调、托管注册及 User access token Custom JWT。敏感配置放 JWT 脚本环境：根密钥、issuer、resource、允许 client → product 映射、credential epoch 和配置版本。
+部署者创建 Native 应用；需要浏览器入口时另建独立 SPA 应用。固定 API resource、`network:join` scope 与用户角色，设置回调、托管注册及 User access token Custom JWT。敏感配置放 JWT 脚本环境：根密钥、issuer、resource、允许 client → product 映射、credential epoch 和配置版本。
 
 客户端只申请 `openid network:join`；持续互联/后台凭证检查建议增加 `offline_access`，需要用户显示资料时才增加相应 profile scope。无刷新授权时，必须在 token 到期或 10 分钟验证租约到期的较早时间停网提示交互登录。SDK 无 Management API、M2M、client secret、custom-data 编辑或脚本管理权限。登录与注册均走 Logto 托管流程，Android 可选系统浏览器或 WebView，容器不持有 OAuth grant；SDK 不收用户密码、不创建管理员身份、不用设备之间复制 grant。
 
@@ -70,9 +70,9 @@ Custom JWT 在令牌签发/刷新路径运行；账号种子确定性派生，�
 }
 ```
 
-hook 输入的 `token.clientId/accountId` 是 Logto 内部签发上下文，不等于最终 JWT 的 `client_id/sub`。参考脚本交叉核对 `context.user.id` 和 `context.application.type=Native`；只对固定 resource、允许 client、`network:join` 用户 token 下发 claim，非目标 API 不附加秘密。脚本顶层额外输出 `client_id` 供终端核验；不覆盖标准 sub/iss/aud/exp。
+hook 输入的 `token.clientId/accountId` 是 Logto 内部签发上下文，不等于最终 JWT 的 `client_id/sub`。参考脚本交叉核对 `context.user.id` 和 `context.application.type`，要求 Native client 精确匹配 `nativeClientIds`、SPA client 精确匹配 `browserClientIds`；只对固定 resource、允许 client、`network:join` 用户 token 下发 claim，非目标 API 不附加秘密。脚本顶层额外输出 `client_id` 供终端核验；不覆盖标准 sub/iss/aud/exp。
 
-本版本只支持 **public subject**：部署必须保证最终 resource JWT 的 `sub` 等于 hook 的 `token.accountId`，且同产品各 Native client 对同一账号得到同一个 sub；不启用 pairwise subject 或其他 subject 重写。服务端编码 accountId、客户端编码最终 sub，二者相等是下述算法成立的前提。管理员需在真实首次注册、登录和刷新路径验收该绑定；不能仅比较 seed，因为相同 seed 配不同 sub 仍会派生出不同网络。
+本版本只支持 **public subject**：部署必须保证最终 resource JWT 的 `sub` 等于 hook 的 `token.accountId`，且同产品各 Native/SPA client 对同一账号得到同一个 sub；不启用 pairwise subject 或其他 subject 重写。服务端编码 accountId、客户端编码最终 sub，二者相等是下述算法成立的前提。管理员需在真实首次注册、登录和刷新路径验收该绑定；不能仅比较 seed，因为相同 seed 配不同 sub 仍会派生出不同网络。
 
 SDK 使用固定 issuer/discovery/JWKS、算法允许列表、audience、sub/iat/exp/client_id/scope 核验完整 JWT，然后才读取 seed；要求真实 client 在静态允许集合、产品与预期一致，拒绝 M2M、冲突 azp、未知版本/网段/上限和缺 claim。不提供“只 decode token 就连网”的 fallback。
 

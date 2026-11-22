@@ -217,7 +217,7 @@ async fn set_name(
         public_config: Some(prost_types::Any {
             type_url: "type.googleapis.com/cyberbus.example.v1.PublicConfig".into(),
             value: example::PublicConfig {
-                application_version: "0.1.0".into(),
+                application_version: "0.2.0".into(),
             }
             .encode_to_vec(),
         }),

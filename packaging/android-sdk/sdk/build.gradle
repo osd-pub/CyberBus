@@ -3,7 +3,7 @@ plugins { id 'com.android.library'; id 'maven-publish' }
 def repositoryRoot = rootProject.projectDir.toPath().resolve('../..').normalize().toFile()
 def schemaRoot = new File(repositoryRoot, 'proto')
 def nativeDirectory = file(providers.gradleProperty('cyberbusJniDir').get())
-def cyberbusVersion = providers.gradleProperty('cyberbusVersion').getOrElse('0.1.0')
+def cyberbusVersion = providers.gradleProperty('cyberbusVersion').getOrElse('0.2.0')
 def generatedJava = layout.buildDirectory.dir('generated/source/proto/main/java')
 def generatedNotices = layout.buildDirectory.dir('generated/resources/notices')
 configurations { protocTool; protobufIncludes }

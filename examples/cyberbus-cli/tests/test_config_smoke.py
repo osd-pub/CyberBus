@@ -11,12 +11,12 @@ spec.loader.exec_module(smoke)
 class EvidenceTests(unittest.TestCase):
     def setUp(self):
         self.call, self.local, self.remote = '01' * 16, '02' * 32, '03' * 32
-        self.expected = dict(revision=4, name='remote', applicationVersion='0.1.0',
+        self.expected = dict(revision=4, name='remote', applicationVersion='0.2.0',
                              semanticVersion='1.0.0', configSha256='04' * 32)
         self.lines = [
             f'RPC_REQUEST_ACCEPTED mode=config call_id={self.call} peer={self.remote}',
             f'RPC_CONFIG call_id={self.call} peer={self.remote} request_id={"05" * 16} '
-            f'revision=4 name="remote" application_version="0.1.0" semantic_version="1.0.0" config_sha256={"04" * 32}',
+            f'revision=4 name="remote" application_version="0.2.0" semantic_version="1.0.0" config_sha256={"04" * 32}',
             f'RPC_EVENT source=sdk_event kind=response_end role=caller call_id={self.call} peer={self.remote} code=OK',
             f'RPC_CONFIG_END call_id={self.call} peer={self.remote} items=1 error=',
             'OK config',

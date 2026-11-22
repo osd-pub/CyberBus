@@ -1,0 +1,63 @@
+name: Web SDK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'packages/cyberbus-web/**'
+      - 'examples/web-demo/**'
+      - 'deploy/logto-user-token.js'
+      - 'deploy/check-claims.mjs'
+      - 'deploy/test-web-client.json'
+      - 'docs/WEB_SDK.md'
+      - '.github/workflows/web-sdk.yml'
+  pull_request:
+    paths:
+      - 'packages/cyberbus-web/**'
+      - 'examples/web-demo/**'
+      - 'deploy/logto-user-token.js'
+      - 'deploy/check-claims.mjs'
+      - 'deploy/test-web-client.json'
+      - 'docs/WEB_SDK.md'
+      - '.github/workflows/web-sdk.yml'
+permissions:
+  contents: read
+concurrency:
+  group: web-sdk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: |
+            packages/cyberbus-web/pnpm-lock.yaml
+            examples/web-demo/pnpm-lock.yaml
+      - name: Install and verify SDK
+        working-directory: packages/cyberbus-web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm check
+          pnpm test
+          pnpm build
+          npm pack --dry-run
+      - name: Install and build demo
+        working-directory: examples/web-demo
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm check
+          pnpm build
+          test -f dist/callback.html
+      - name: Verify Logto hook fixtures
+        run: node deploy/check-claims.mjs
+      - name: Reject private deployment material
+        run: python3 scripts/check-public-tree.py

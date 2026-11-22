@@ -57,13 +57,13 @@ handler、数据订阅和 watch 的回调注册必须先建立 adapter 本地引
 
 ## 3. Logto 登录、注册与 claim
 
-唯一LogtoAdapter使用Logto Native Authorization Code + PKCE S256流程；优先复用满足能力的官方SDK，G0也可选择基于成熟Rust OAuth/OIDC库的协议适配器（不手写密码学），同一实例只选一个授权owner，不承诺已有官方Rust SDK。客户端最小自定义 API scope 只有 `network:join`，OIDC 所需标准 scope 按官方登录流程处理。不得以 scope 名义申请管理权限或 M2M 身份。`AuthStart(REGISTER)` 仅进入 Logto 托管注册页面，SDK 不接收密码，注册资料仅由托管页面处理。issuer/client/resource/redirect URI 允许表由可信宿主配置提供，不允许 peer 覆盖。
+原生 Rust SDK 的 LogtoAdapter 使用 Logto Native Authorization Code + PKCE S256流程；浏览器入口 `@cyberbus/web` 使用独立的 Logto SPA public client 和同样的 Authorization Code + PKCE S256 流程，不持有 client secret。优先复用满足能力的官方SDK，G0也可选择基于成熟Rust OAuth/OIDC库的协议适配器（不手写密码学），同一实例只选一个授权owner，不承诺已有官方Rust SDK。客户端最小自定义 API scope 只有 `network:join`，OIDC 所需标准 scope 按官方登录流程处理。不得以 scope 名义申请管理权限或 M2M 身份。`AuthStart(REGISTER)` 仅进入 Logto 托管注册页面，SDK 不接收密码，注册资料仅由托管页面处理。issuer/client/resource/redirect URI 允许表由可信宿主配置提供，不允许 peer 覆盖。
 
 `AuthStart` 返回随机 `operation_id`、授权 URL 和过期时间；URL 只供本地打开浏览器。操作默认有效10分钟，过期产生 FAILED/DEADLINE_EXCEEDED 终态。`AuthCallback` 必须携带同一 operation ID 和原始回调 URI。SDK 限制同时一个待完成认证操作，逐项验证 operation、过期、redirect 精确匹配、OAuth state、PKCE、OIDC nonce。callback 命令 `ok` 表示已接纳处理；最终结果在同一 operation 的 `AuthEvent`。重复 callback 在 pending 时返回 CONFLICT，终态后返回 CONFLICT，不重复换 token。取消与成功竞争时由同一串行认证所有者选定一个终态；取消后的迟到响应不得产生第二个终态或安装登录态；涉及grant轮换的请求仍由原owner结算，不能丢弃所有权或重放，见§3.1。Logto托管页面/所选LogtoAdapter的具体signup参数由实现适配，不在此声称某个未经验证的参数可用。
 
 AuthRestore 仅携带调用者生成的 operation_id，存储策略由 Client::new 的可信 config 固定，不接收 token/grant、任意存储路径或临时策略覆盖。默认内存模式冷启动没有可恢复 grant；接纳后 AuthEvent(RESTORING) 再给 FAILED/UNAUTHENTICATED，提示重新授权。存在平台安全存储授权且没有reauth latch时，仅由同一LogtoAdapter执行真实在线恢复/刷新，再验证完整JWT/claim及§3.1租约和凭证基线；满足全部条件才给AUTHENTICATED，不自动开浏览器或start_network。已有latch须给REAUTH_REQUIRED，静默restore不能清除；冷启动不继承旧租约，须先恢复受保护active/pending/高水位记录并真实核验再授予新租约，失败保持closed。restore默认30秒预算；与start共享认证所有者，可用AuthCancel取消。AuthCancel对已取消/已终结/未知合法ID幂等返回ok，不再产生第二个终态。
 
-SDK 验证 resource access token 的签名、算法允许表、固定 issuer/discovery/JWKS、audience、顶层非空 sub、iat/exp/nbf（最大时钟偏差 60 秒）、`network:join`、顶层真实 client_id 及可信 Native client 绑定。拒绝 ID token 代替 access token、M2M grant、缺失真实 client 绑定，以及 `azp`/`client_id` 冲突；原生应用 client 类型由部署允许表确认。不得从未验签 JWT、用户可写 custom data 或 callback 自报字段建立账号身份。
+SDK 验证 resource access token 的签名、算法允许表、固定 issuer/discovery/JWKS、audience、顶层非空 sub、iat/exp/nbf（最大时钟偏差 60 秒）、`network:join`、顶层真实 client_id 及可信 client 绑定。原生 Rust SDK 只接受部署允许表中的 Native client；浏览器 SDK 只接受独立 SPA client，并要求 `context.application.type` 与 `nativeClientIds`/`browserClientIds` 列表类型精确匹配。拒绝 ID token 代替 access token、M2M grant、缺失真实 client 绑定，以及 `azp`/`client_id` 冲突。不得从未验签 JWT、用户可写 custom data 或 callback 自报字段建立账号身份。
 
 固定 claim 键为 **`https://cyberbus.x.aixgg.com/easytier/credentials/v1`**，值为以下对象；这是 HTTPS token 内 JSON claim 的定义，**不是 peer JSON 编码**：
 
@@ -86,7 +86,7 @@ SDK 验证 resource access token 的签名、算法允许表、固定 issuer/dis
 
 seed 必须由 Logto 受信 custom JWT 签发逻辑从服务端秘密和 `(JWT.iss, JWT.sub, product_id, credential_epoch)` 稳定派生；不同设备同绑定得到相同 seed，客户端不能任意指定 product_id 或 credential_epoch。hook 顶层额外输出 client_id，Logto 保留标准 iss/sub/aud/exp 的所有权。seed/config 只从已验证官方 Logto JWT 取得，不再调用独立 HTTP bootstrap API，不做设备目录注册。固定 bootstrap/relay 联系点是宿主受信传输配置，不是第二个下发 seed/CIDR 的 API。claim 缺失、seed/绑定/配置无效返回 `INVALID_CLAIMS`；resource/scope/client/custom-claim 签发部署错误返回 `LOGTO_CONFIGURATION`；网络失败返回 `UNAVAILABLE`，不提示“调用引导 HTTP API”。
 
-v1仅支持public subject：最终resource JWT的sub必须等于hook输入token.accountId，同账号同产品的所有Native client必须保持相同sub，禁止pairwise或其他sub重写，并须在真实签发/刷新验收中确认sub、seed及派生network_name/network_secret跨端一致，见[Logto部署前提](logto-deployment.md)。
+v1仅支持public subject：最终resource JWT的sub必须等于hook输入token.accountId，同账号同产品的所有Native/SPA client必须保持相同sub，禁止pairwise或其他sub重写，并须在真实签发/刷新验收中确认sub、seed及派生network_name/network_secret跨端一致，见[Logto部署前提](logto-deployment.md)。
 
 Logto会将完整hook返回值交给审计流程；上述claim键中的credentials与叶子字段中的secret会触发固定版现有redactor对credential/secret子串的匹配，分别遮罩整个claim对象和seed叶子值，不得去掉这些敏感标记，固定版常规部署无需修改Logto核心源码；但生产seed发行前必须按[部署日志验收](logto-deployment.md)真实验证目标版本的审计存储与日志均不含seed，不匹配这些规则的目标版本须先升级或补齐脱敏，仅禁止脚本console.log不足以完成验收，未通过不得发行生产seed。
 

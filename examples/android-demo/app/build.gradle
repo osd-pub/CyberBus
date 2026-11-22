@@ -7,7 +7,7 @@ def repositoryRoot = rootProject.projectDir.toPath().resolve('../..').normalize(
 def schemaRoot = file(providers.gradleProperty('cyberbusProtoDir').getOrElse(new File(repositoryRoot, 'proto').path))
 def publicConfig = file(providers.gradleProperty('cyberbusConfig').getOrElse(new File(repositoryRoot, 'deploy/test-client.json').path))
 def nativeDirectory = file(providers.gradleProperty('cyberbusJniDir').getOrElse(new File(repositoryRoot, 'target/android-jni').path))
-def cyberbusVersion = providers.gradleProperty('cyberbusVersion').getOrElse('0.1.0')
+def cyberbusVersion = providers.gradleProperty('cyberbusVersion').getOrElse('0.2.0')
 def versionMatch = cyberbusVersion =~ /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
 if (!versionMatch.matches()) throw new GradleException("Invalid CyberBus version: ${cyberbusVersion}")
 def cyberbusVersionCode = versionMatch.group(1).toInteger() * 10000 + versionMatch.group(2).toInteger() * 100 + versionMatch.group(3).toInteger()

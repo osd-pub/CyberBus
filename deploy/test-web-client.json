@@ -1,0 +1,8 @@
+{
+  "issuer": "https://auth.example.com/oidc",
+  "client_id": "example-spa-client",
+  "resource": "https://api.example.com/cyberbus",
+  "product_id": "example-product",
+  "redirect_uri": "http://127.0.0.1:5173/callback.html",
+  "peers": ["wss://relay.example.invalid/"]
+}

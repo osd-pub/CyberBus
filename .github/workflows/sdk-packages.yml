@@ -18,7 +18,7 @@ env:
   CARGO_BUILD_JOBS: 2
   MACOSX_DEPLOYMENT_TARGET: '11.0'
   CARGO_TARGET_DIR: ${{ github.workspace }}/target
-  CYBERBUS_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.1.0' }}
+  CYBERBUS_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.2.0' }}
 jobs:
   desktop:
     strategy:

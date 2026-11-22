@@ -140,3 +140,11 @@ PATCH 为顶层浅合并，不是递归合并/原子自增；管理员串行更�
 本地 `.proto` 覆盖屏蔽/解除/查询及认证状态回调；peer WireEnvelope 不提供远程修改屏蔽表的命令。运行期策略持久化、监控、真实刷新、锁存和 Noise/EasyTier 关网已实现；单元测试与真实登录/刷新、双端 block/unblock 证据分别记录，不能据此推定完整轮换和长时后台验收。账号级 epoch 另需脚本版本和迁移设计。
 
 验收边界集中在 [UNRESOLVED.md](UNRESOLVED.md)：默认认证即可互通；block 后双向数据和信息停止；解除后重新拉取声明；缓存 token 不续租；root-only/epoch 轮换均可发现；Logto 短时故障不误报变更；租约到期、重启、取消登录不恢复旧网。真实服务器轮换、强制重新认证和后台计时仍未全部执行，schema 编译不替代这些验收。
+
+## 7. 浏览器边界
+
+`@cyberbus/web` 使用 Logto SPA public client，不接收 client secret。access token、refresh token、PKCE verifier、账号 seed、network secret、app PSK 和 binding ID 只驻留页面内存；SDK 不写 `localStorage`、`sessionStorage`、IndexedDB、cookie 或普通配置，刷新页面即丢失授权。授权材料不得进入 URL 之外的日志、遥测、错误文本、DOM 或应用事件。
+
+浏览器仍会执行完整 JWT/JWKS 验签、issuer/audience/client/scope/时间/nonce/ID token 和 credential claim 校验，并使用 Web Crypto 做与 Rust 相同的 HKDF 派生。真实 refresh 成功但 epoch/派生材料变化时，SDK 停止旧 EasyTier 实例并进入 `reauth-required`，不无感迁移旧流。
+
+浏览器只能通过 `@easytier/browser` 连接 `ws://`（仅 loopback 开发）/`wss://` peer，并打开出站 overlay IPv4 TCP；不能创建 TUN、入站监听、STUN 或 hole punching。不得把 `listenTcp` 的浏览器端口租约宣传为真实入站转发。Logto SPA client 必须通过 `browserClientIds` 显式允许，且 application type 必须精确为 `SPA`；不能把 SPA 加入 Native 列表或删除类型检查。

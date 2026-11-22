@@ -10,10 +10,13 @@
 - Windows、iOS 和所有平台消费者的完整登录、网络、打包运行尚未在本公开快照中声称通过。
 - 平台安全存储集成仍需由应用提供正式 `SecureStore`；`DevelopmentFileStore` 是明文开发实现。
 - 主动目标路由解析与复杂网络分区处理仍需设计、单测和真实 ACK 对照。
+- 浏览器 Web SDK 已完成真实 Chrome + `@easytier/browser` + 本地 loopback relay 的 TCP 字节 smoke，但尚未在真实 `wss://` relay、远端目标以及真实 Logto 与数据面联合场景验收；现有 `tcp://` bootstrap 不能被浏览器使用。
+- 浏览器不能入站监听、创建 TUN 或使用 STUN/hole punching；Web SDK 不提供 CyberBus Noise 应用层握手或完整 Protobuf 设备/Data/RPC facade。
+- 浏览器休眠/唤醒、网络切换、长时间 refresh/lease 和 256 节点规模尚未验收。
 
 ## 已完成的公开能力
 
-Rust SDK、Protobuf schema、C/JNI 边界、Android sample、EasyTier 最小诊断探针和可选官方 `cloudflared` connector 已纳入源码。默认 Cloudflare 兜底关闭，且 Quick Tunnel 只适合作为临时开发中继；它不提供应用认证、不保证稳定域名或生产 SLA。
+Rust SDK、Protobuf schema、C/JNI 边界、Android sample、EasyTier 最小诊断探针、可选官方 `cloudflared` connector 和浏览器 Web SDK 已纳入源码。Web SDK 已在隔离 Logto 部署验证 SPA 登录/刷新和同产品 seed 一致性，并在真实 Chrome 中通过 `@easytier/browser` WASM、本地 Wrangler relay 和 overlay TCP 目标完成字节互通；这不等于生产 WSS relay、远端目标和真实 Logto 联合场景已验收。默认 Cloudflare 兜底关闭，且 Quick Tunnel 只适合作为临时开发中继；它不提供应用认证、不保证稳定域名或生产 SLA。
 
 遇到连通性问题时按层定位：先用 `scripts/diagnose-easytier.py` 验证 TCP/WS 原始字节，再用 Noise 探针验证握手，最后运行 SDK 登录、目录、Data 和 ACK。每一层都必须使用新的公共测试 key/配置，避免把真实授权材料写入日志。
 

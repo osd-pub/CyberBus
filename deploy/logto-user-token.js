@@ -3,8 +3,9 @@
  * Reference contract: the supplied create-script.mdx Runtime APIs snapshot and
  * jwt-customizer.ts sources; this does not establish support in older releases.
  * The deployed version MUST expose Web Crypto, TextEncoder, URL, and trusted
- * context.application (type exactly "Native"). Missing application data denies
- * this resource. token is oidc-provider's internal token, not the final JWT;
+ * context.application (Native client type exactly "Native", browser SPA client
+ * type exactly "SPA"). Missing application data denies this resource. token is
+ * oidc-provider's internal token, not the final JWT;
  * accountId/clientId are authoritative here, and sub need not be present yet.
  *
  * Set blockIssuanceOnError=true in Logto's external customizer configuration.
@@ -18,9 +19,13 @@
  *   slash, userinfo, query, or fragment; use the same exact value in the SDK.
  * ET_RESOURCE: exact nonempty target API resource identifier (no normalization).
  * ET_ROOT_KEY_HEX: secret independent 32-byte root key, exactly 64 hex digits.
- * ET_PRODUCTS_JSON: JSON array of {"productId":"...","nativeClientIds":["..."]};
- *   products and clients must be unique, with every client in just one product.
- *   Verify these configured clients really are Native in this Logto deployment.
+ * ET_PRODUCTS_JSON: JSON array of
+ *   {"productId":"...","nativeClientIds":["..."],"browserClientIds":["..."]};
+ *   browserClientIds is optional; nativeClientIds may be empty only when a
+ *   browser-only product has at least one browser client. Products and clients
+ *   must be unique, with every client in just one product and one
+ *   application-type list. Verify native clients really are Native and browser
+ *   clients really are SPA.
  * ET_CREDENTIAL_EPOCH: canonical u64 decimal STRING, from 0 to
  *   18446744073709551615 inclusive, with no leading zero except "0" itself.
  * ET_CONFIG_VERSION: 1..64 printable ASCII characters (0x20..0x7e);
@@ -86,8 +91,7 @@ const getCustomJwtClaims = async ({ token, context, environmentVariables, api })
     !isRecord(context) ||
     !isRecord(context.user) ||
     context.user.id !== token.accountId ||
-    !isRecord(context.application) ||
-    context.application.type !== 'Native'
+    !isRecord(context.application)
   ) {
     return deny();
   }
@@ -109,6 +113,7 @@ const getCustomJwtClaims = async ({ token, context, environmentVariables, api })
   let configVersion;
   let root;
   let seedHex;
+  let expectedApplicationType;
   try {
     issuer = environmentVariables.ET_ISSUER;
     if (!nonemptyString(issuer)) throw new Error();
@@ -148,25 +153,65 @@ const getCustomJwtClaims = async ({ token, context, environmentVariables, api })
     const products = JSON.parse(productsJson);
     if (!Array.isArray(products) || products.length === 0) throw new Error();
     const productIds = new Set();
-    const clientIds = new Set();
+    const nativeClientIds = new Set();
+    const browserClientIds = new Set();
     for (const product of products) {
       if (
         !isRecord(product) ||
         !nonemptyString(product.productId) ||
         productIds.has(product.productId) ||
         !Array.isArray(product.nativeClientIds) ||
-        product.nativeClientIds.length === 0
+        (product.nativeClientIds.length === 0 &&
+          product.browserClientIds === undefined)
       ) {
         throw new Error();
       }
       productIds.add(product.productId);
       for (const clientId of product.nativeClientIds) {
-        if (!nonemptyString(clientId) || clientIds.has(clientId)) throw new Error();
-        clientIds.add(clientId);
-        if (clientId === token.clientId) productId = product.productId;
+        if (
+          !nonemptyString(clientId) ||
+          nativeClientIds.has(clientId) ||
+          browserClientIds.has(clientId)
+        ) {
+          throw new Error();
+        }
+        nativeClientIds.add(clientId);
+        if (clientId === token.clientId) {
+          productId = product.productId;
+          expectedApplicationType = 'Native';
+        }
+      }
+      if (product.browserClientIds !== undefined) {
+        if (
+          !Array.isArray(product.browserClientIds) ||
+          product.browserClientIds.length === 0
+        ) {
+          throw new Error();
+        }
+        for (const clientId of product.browserClientIds) {
+          if (
+            !nonemptyString(clientId) ||
+            nativeClientIds.has(clientId) ||
+            browserClientIds.has(clientId)
+          ) {
+            throw new Error();
+          }
+          browserClientIds.add(clientId);
+          if (clientId === token.clientId) {
+            productId = product.productId;
+            expectedApplicationType = 'SPA';
+          }
+        }
       }
     }
-    if (productId === undefined) throw new Error();
+    if (
+      productId === undefined ||
+      expectedApplicationType === undefined ||
+      context.application.type !== expectedApplicationType ||
+      ('id' in context.application && context.application.id !== token.clientId)
+    ) {
+      throw new Error();
+    }
 
     const rootHex = environmentVariables.ET_ROOT_KEY_HEX;
     if (typeof rootHex !== 'string' || !/^[0-9a-fA-F]{64}$/u.test(rootHex)) {

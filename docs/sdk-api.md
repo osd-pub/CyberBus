@@ -2,6 +2,8 @@
 
 状态：核心 Rust SDK、C/JNI 绑定与 sample 已实现；实际验收范围见 [应用接入指南](INTEGRATION.md) 和 [未解决事项](UNRESOLVED.md)。正式消息类型见 [sdk.proto](../proto/cyberbus/easytier/v1/sdk.proto)，终端协议见 [protocol.md](protocol.md)。下文 snake_case 名称描述操作语义；当前统一入口为 `Client::execute(SdkCommand)` 或 `execute_bytes`，事件由单一 receiver 读取。
 
+> 浏览器入口是独立的 `@cyberbus/web`，不实现本文件的 Protobuf `SdkCommand`/`SdkResult`/`SdkEvent` facade 或 CyberBus Noise 应用层握手。它提供 Logto SPA 登录、相同凭证 claim 校验/派生，以及 `@easytier/browser` 出站 overlay TCP。浏览器不能入站监听或创建 TUN；详见 [Web SDK](WEB_SDK.md)。
+
 ## 1. 创建与登录/注册
 
 当前 `Client::new(config, secure_store, store_mode).await` 创建 SDK，由内部唯一 AuthManager 管理授权；`take_event_receiver` 转移事件接收权，`on_resume` 检查前台恢复时的验证租约。公开配置只含固定 issuer、Native client ID、API resource、允许产品、redirect URI、受信 bootstrap/relay 配置及本地策略；不含 client secret、M2M、seed 或服务器 root key。

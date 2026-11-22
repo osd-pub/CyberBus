@@ -432,7 +432,7 @@ class Suite:
 
     async def profile(self, client, suffix=''):
         result = await client.cmd('updatePublicProfile', dict(profile=dict(deviceName=client.name+suffix,
-            publicConfig={'@type':'type.googleapis.com/cyberbus.example.v1.PublicConfig', 'applicationVersion':'0.1.0'},
+            publicConfig={'@type':'type.googleapis.com/cyberbus.example.v1.PublicConfig', 'applicationVersion':'0.2.0'},
             configSemanticVersion='1.0.0'), expectedRevision=str(client.revision), updateMask='deviceName,publicConfig,configSemanticVersion'))
         client.revision = int(result['publicProfile']['configRevision'])
 

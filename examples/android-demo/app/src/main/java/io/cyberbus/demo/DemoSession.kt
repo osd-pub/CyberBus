@@ -378,7 +378,7 @@ class DemoSession(context: Context) {
         if (!available || busy) return
         if (name.isBlank() || name.toByteArray().size > 128) { log("INVALID_ARGUMENT · 名称需为 1–128 字节"); return }
         busy = true; notifyUi()
-        val publicConfig = Echo.PublicConfig.newBuilder().setApplicationVersion("0.1.0").build()
+        val publicConfig = Echo.PublicConfig.newBuilder().setApplicationVersion("0.2.0").build()
         val next = profile.toBuilder().setDeviceName(name.trim()).setConfigRevision(0)
             .setConfigSemanticVersion("1.0.0").setPublicConfig(ProtoAny.newBuilder()
                 .setTypeUrl("type.googleapis.com/cyberbus.example.v1.PublicConfig").setValue(publicConfig.toByteString()))

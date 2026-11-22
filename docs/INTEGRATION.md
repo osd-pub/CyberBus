@@ -8,8 +8,8 @@
 
 ```toml
 [dependencies]
-cyberbus = { git = "https://github.com/osd-pub/CyberBus.git", tag = "v0.1.0" }
-cyberbus-auth = { git = "https://github.com/osd-pub/CyberBus.git", tag = "v0.1.0" }
+cyberbus = { git = "https://github.com/osd-pub/CyberBus.git", tag = "v0.2.0" }
+cyberbus-auth = { git = "https://github.com/osd-pub/CyberBus.git", tag = "v0.2.0" }
 prost = "0.14"
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }
 ```
@@ -78,7 +78,27 @@ C ABI 位于 `include/cyberbus.h`：输入 buffer 只借用，输出 buffer 只�
 
 所有绑定都遵循同一个顺序：启动事件消费者 → 创建/恢复 → Auth → Profile → NetworkStart → 业务 → SdkClose/排空 → close。平台生命周期只负责把系统回调转为这些明确操作，不应在 Kotlin/Swift/C 层复制授权、网络或 ACK 状态机。
 
-## 7. 最小检查清单
+## 7. Web 页面
+
+Web 页面使用独立的 `packages/cyberbus-web` / `@cyberbus/web`，不是 Rust Protobuf `Client` 的 WASM 编译。它使用 Logto SPA Authorization Code + PKCE，在浏览器内存中保留 token 和派生材料，再通过 `@easytier/browser` 打开出站 overlay IPv4 TCP 流：
+
+```ts
+const client = CyberBusWeb.create({
+  issuer: "https://auth.example.com/oidc",
+  clientId: "logto-spa-client",
+  resource: "https://api.example.com/cyberbus",
+  productId: "my-product",
+  redirectUri: `${location.origin}/callback.html`,
+  peers: ["wss://relay.example.com/"],
+});
+await client.login();
+await client.startNetwork();
+const stream = await client.openPort("10.144.0.20", 8080);
+```
+
+浏览器不能接受 overlay 入站连接、创建 TUN 或使用 STUN/hole punching；现有 `tcp://` bootstrap 也不能被浏览器使用，需要浏览器兼容的 `wss://` relay。Web SDK 不提供设备目录、Data/RPC、公开 profile 等 Protobuf facade。完整配置、callback、安全边界和验收状态见 [Web SDK](WEB_SDK.md)。
+
+## 8. 最小检查清单
 
 - 配置不含任何凭据，issuer/resource/client 是你自己的部署值。
 - 首次安装和已安装打开路径由宿主显式选择。
@@ -87,5 +107,6 @@ C ABI 位于 `include/cyberbus.h`：输入 buffer 只借用，输出 buffer 只�
 - Authenticated、NetworkStart、远端 snapshot、ACK 终态分别处理。
 - 本地开发存储目录、授权 callback 和构建产物加入忽略规则。
 - 关闭时先交付 `SdkClose`，再排空事件并释放 native 资源。
+- Web 页面使用 SPA client、同源 callback 和 `browserClientIds`；不要复用 Native client，也不要把 token/seed 写入 Web Storage。
 
 EasyTier 的裸字节连通性诊断见 `scripts/diagnose-easytier.py`；它只验证传输，不证明 Noise、账号授权或业务 ACK。Cloudflare 可选兜底见 [CLOUDFLARE_FALLBACK.md](CLOUDFLARE_FALLBACK.md)。

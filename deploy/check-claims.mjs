@@ -18,7 +18,11 @@ const TEST_ROOT_HEX = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1
 const CLAIM = 'https://cyberbus.x.aixgg.com/easytier/credentials/v1';
 const DENIAL = 'EasyTier credential issuance denied';
 const PRODUCTS = [
-  { productId: 'fixture-product', nativeClientIds: ['fixture-desktop', 'fixture-mobile'] },
+  {
+    productId: 'fixture-product',
+    nativeClientIds: ['fixture-desktop', 'fixture-mobile'],
+    browserClientIds: ['fixture-web'],
+  },
   { productId: 'fixture-other-product', nativeClientIds: ['fixture-other-client'] },
 ];
 const ENVIRONMENT = {
@@ -44,7 +48,12 @@ function loadHook(cryptoApi = webcrypto) {
 }
 const getClaims = loadHook();
 
-function fixture({ accountId = 'fixture-account', clientId = 'fixture-desktop', env = {} } = {}) {
+function fixture({
+  accountId = 'fixture-account',
+  clientId = 'fixture-desktop',
+  applicationType = 'Native',
+  env = {},
+} = {}) {
   return {
     token: {
       aud: ENVIRONMENT.ET_RESOURCE,
@@ -56,7 +65,7 @@ function fixture({ accountId = 'fixture-account', clientId = 'fixture-desktop', 
     },
     context: {
       user: { id: accountId },
-      application: { id: clientId, type: 'Native' },
+      application: { id: clientId, type: applicationType },
     },
     environmentVariables: { ...ENVIRONMENT, ...env },
   };
@@ -153,6 +162,32 @@ await test('same account and product across Native clients', async () => {
   const mobile = await claims(fixture({ clientId: 'fixture-mobile' }));
   check(seed(desktop) === seed(mobile));
   check(mobile.client_id === 'fixture-mobile');
+});
+await test('same account and product across Native and SPA clients', async () => {
+  const desktop = await claims();
+  const web = await claims(
+    fixture({
+      clientId: 'fixture-web',
+      applicationType: 'SPA',
+    }),
+  );
+  check(seed(desktop) === seed(web));
+  check(web.client_id === 'fixture-web');
+});
+await test('browser-only product needs no Native client', async () => {
+  const products = [{
+    productId: 'fixture-web-only-product',
+    nativeClientIds: [],
+    browserClientIds: ['fixture-web-only-client'],
+  }];
+  const input = fixture({
+    clientId: 'fixture-web-only-client',
+    applicationType: 'SPA',
+    env: { ET_PRODUCTS_JSON: JSON.stringify(products) },
+  });
+  const result = await claims(input);
+  check(result[CLAIM].product_id === products[0].productId);
+  check(seed(result) === reference(input, products[0].productId));
 });
 await test('refresh and incidental token metadata keep seed stable', async () => {
   const initial = await claims();
@@ -281,6 +316,17 @@ const deniedCases = [
   ['non-Native application', (x) => { x.context.application.type = 'Traditional'; }],
   ['lowercase Native', (x) => { x.context.application.type = 'native'; }],
   ['M2M application', (x) => { x.context.application.type = 'MachineToMachine'; }],
+  ['SPA client with Native type', (x) => {
+    x.token.clientId = 'fixture-web';
+    x.context.application.id = x.token.clientId;
+    x.context.application.type = 'Native';
+  }],
+  ['Native client with SPA type', (x) => { x.context.application.type = 'SPA'; }],
+  ['browser client missing application type', (x) => {
+    x.token.clientId = 'fixture-web';
+    x.context.application.id = x.token.clientId;
+    delete x.context.application.type;
+  }],
   ['application id conflict', (x) => { x.context.application.id = 'fixture-mobile'; }],
   ['target audience array', (x) => { x.token.aud = [ENVIRONMENT.ET_RESOURCE]; }],
   ['mixed audience array', (x) => { x.token.aud = ['other', ENVIRONMENT.ET_RESOURCE]; }],
@@ -325,6 +371,7 @@ const invalidEnvironments = {
   ET_PRODUCTS_JSON: [undefined, '', '{', '{}', 'null', '[]', JSON.stringify([null]),
     JSON.stringify([{ productId: '', nativeClientIds: ['fixture-desktop'] }]),
     JSON.stringify([{ productId: 'p', nativeClientIds: [] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: [], browserClientIds: [] }]),
     JSON.stringify([{ productId: 'p', nativeClientIds: 'fixture-desktop' }]),
     JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop', 'fixture-desktop'] }]),
     JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop', ''] }]),
@@ -333,6 +380,13 @@ const invalidEnvironments = {
       { productId: 'q', nativeClientIds: ['fixture-desktop'] }]),
     JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'] },
       { productId: 'p', nativeClientIds: ['fixture-mobile'] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: 'fixture-web' }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: [] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: ['fixture-web', 'fixture-web'] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: ['fixture-desktop'] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: [123] }]),
+    JSON.stringify([{ productId: 'p', nativeClientIds: ['fixture-desktop'], browserClientIds: ['fixture-web'] },
+      { productId: 'q', nativeClientIds: ['fixture-other'], browserClientIds: ['fixture-web'] }]),
     JSON.stringify([{ productId: '\udc00', nativeClientIds: ['fixture-desktop'] }])],
 };
 for (const [variable, values] of Object.entries(invalidEnvironments)) {

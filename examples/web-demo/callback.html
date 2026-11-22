@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CyberBus Web callback</title>
+  </head>
+  <body>
+    <p id="status">Completing login…</p>
+    <script>
+      const message = {
+        type: "cyberbus-web-auth-callback/v1",
+        url: location.href,
+      };
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(message, location.origin);
+        document.getElementById("status").textContent =
+          "Login received. You may close this window.";
+        setTimeout(() => window.close(), 250);
+      } else {
+        document.getElementById("status").textContent =
+          "No opener window. Return to the application and start login again.";
+      }
+    </script>
+  </body>
+</html>

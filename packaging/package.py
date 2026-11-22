@@ -14,7 +14,7 @@ import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = os.environ.get('CYBERBUS_VERSION', '0.1.0')
+VERSION = os.environ.get('CYBERBUS_VERSION', '0.2.0')
 if VERSION.startswith('v'):
     VERSION = VERSION[1:]
 

@@ -1,6 +1,7 @@
 # 文档索引
 
 - [应用接入指南](INTEGRATION.md)：给 Rust、C/JNI、Android、Swift 应用开发者。
+- [Web SDK](WEB_SDK.md)：浏览器 Logto SPA、Web Crypto 凭证派生、EasyTier WebAssembly 和出站 TCP。
 - [构建与打包](BUILDING.md)：工具链、平台依赖、离线 smoke 和发布检查。
 - [协议](protocol.md)：Protobuf schema、消息、ACK、RPC 和 descriptor。
 - [SDK API](sdk-api.md)：命令、事件、认证、目录和存储语义。

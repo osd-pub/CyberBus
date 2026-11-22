@@ -1,4 +1,4 @@
-CyberBus SDK 0.1.0
+CyberBus SDK 0.2.0
 
 The root CyberBus workspace declares MIT OR Apache-2.0; cyberbus-transport
 declares LGPL-3.0-or-later. Full texts accompany this distribution. The cyberbus
